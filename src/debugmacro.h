@@ -31,11 +31,18 @@
  */
 
 #include <stdio.h>
-#define D(...)                                                               \
+#define DD(...)                                                               \
     do {                                                                     \
         FILE *fp = fopen("/tmp/log.txt","a");                                \
         fprintf(fp,"%s:%s:%d:\t", __FILE__, __func__, __LINE__);             \
         fprintf(fp,__VA_ARGS__);                                             \
         fprintf(fp,"\n");                                                    \
         fclose(fp);                                                          \
+    } while (0)
+
+#define DDD(...)                                                               \
+    do {                                                                     \
+        fprintf(stderr,"%s:%s:%d:\t", __FILE__, __func__, __LINE__);             \
+        fprintf(stderr,__VA_ARGS__);                                             \
+        fprintf(stderr,"\n");                                                    \
     } while (0)

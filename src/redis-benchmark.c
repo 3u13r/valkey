@@ -1013,6 +1013,7 @@ static void benchmark(const char *title, char *cmd, int len) {
     config.totlatency = mstime()-config.start;
 
     showLatencyReport();
+    printf("------------------------------------------------------------------------\n");
     freeAllClients();
     if (config.threads) freeBenchmarkThreads();
     if (config.current_sec_latency_histogram) hdr_close(config.current_sec_latency_histogram);

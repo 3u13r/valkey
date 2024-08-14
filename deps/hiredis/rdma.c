@@ -26,12 +26,15 @@
 
 #include "fmacros.h"
 
+#include "../../src/debugmacro.h"
 #include "async.h"
+#include "alloc.h"
 #include "async_private.h"
 #include "hiredis.h"
 #include "net.h"
 #include "rdma.h"
 #include <errno.h>
+#include <sys/mman.h>
 
 #define UNUSED(x) (void)(x)
 
@@ -141,6 +144,27 @@ static inline long redisNowMs(void) {
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+#define PAGE_SIZE 4096
+#define roundup(x, y)  ((((x) + ((y) - 1)) / (y)) * (y))
+
+static void *page_aligned_zalloc(size_t size) {
+    void *tmp;
+    size_t aligned_size;
+
+    aligned_size = (size + PAGE_SIZE - 1) & (~(PAGE_SIZE - 1));
+    if (aligned_size != size) {
+        fprintf(stderr, "size: %ld, aligned_size: %ld\n", size, aligned_size);
+        exit(1);
+    }
+    if (posix_memalign(&tmp, PAGE_SIZE, size)) {
+        fprintf(stderr, "posix_memalign failed\n");
+        exit(1);
+    }
+
+    memset(tmp, 0x00, size);
+
+    return tmp;
+}
 
 static int rdmaPostRecv(RdmaContext *ctx, struct rdma_cm_id *cm_id, RedisRdmaCmd *cmd) {
     struct ibv_sge sge;
@@ -198,7 +222,9 @@ static int rdmaSetupIoBuf(redisContext *c, RdmaContext *ctx, struct rdma_cm_id *
     int i;
 
     /* setup CMD buf & MR */
-    ctx->cmd_buf = hi_calloc(length, 1);
+    // ctx->cmd_buf = hi_calloc(length, 1);
+    ctx->cmd_buf = page_aligned_zalloc(length);
+    DDD("cmd_buf: %p, length: %ld", ctx->cmd_buf, length);
     ctx->cmd_mr = ibv_reg_mr(ctx->pd, ctx->cmd_buf, length, access);
     if (!ctx->cmd_mr) {
         __redisSetError(c, REDIS_ERR_OTHER, "RDMA: reg recv mr failed");
@@ -222,8 +248,10 @@ static int rdmaSetupIoBuf(redisContext *c, RdmaContext *ctx, struct rdma_cm_id *
     /* setup recv buf & MR */
     access = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE;
     length = REDIS_RDMA_DEFAULT_RX_LEN;
-    ctx->recv_buf = hi_calloc(length, 1);
+    // ctx->recv_buf = hi_calloc(length, 1);
+    ctx->recv_buf = page_aligned_zalloc(length);
     ctx->recv_length = length;
+    DDD("recv_buf: %p, length: %d", ctx->recv_buf, length);
     ctx->recv_mr = ibv_reg_mr(ctx->pd, ctx->recv_buf, length, access);
     if (!ctx->recv_mr) {
         __redisSetError(c, REDIS_ERR_OTHER, "RDMA: reg send mr failed");
@@ -246,14 +274,18 @@ static int rdmaAdjustSendbuf(redisContext *c, RdmaContext *ctx, unsigned int len
 
     /* try to free old MR & buffer */
     if (ctx->send_length) {
+        DDD("free old send buf: %p, length: %d", ctx->send_buf, ctx->send_length);
+        exit(1);
         ibv_dereg_mr(ctx->send_mr);
         hi_free(ctx->send_buf);
         ctx->send_length = 0;
     }
 
     /* create a new buffer & MR */
-    ctx->send_buf = hi_calloc(length, 1);
+    // ctx->send_buf = hi_calloc(length, 1);
+    ctx->send_buf = page_aligned_zalloc(length);
     ctx->send_length = length;
+    DDD("send_buf: %p, length: %d", ctx->send_buf, length);
     ctx->send_mr = ibv_reg_mr(ctx->pd, ctx->send_buf, length, access);
     if (!ctx->send_mr) {
         __redisSetError(c, REDIS_ERR_OTHER, "RDMA: reg send buf mr failed");

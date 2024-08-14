@@ -28,6 +28,7 @@
 #ifdef __linux__    /* currently RDMA is only supported on Linux */
 #include "connection.h"
 #include "connhelpers.h"
+#include "debugmacro.h"
 #include "cluster.h"
 
 #include <assert.h>
@@ -206,6 +207,7 @@ static int rdmaSetupIoBuf(RdmaContext *ctx, struct rdma_cm_id *cm_id) {
 
     /* setup CMD buf & MR */
     ctx->cmd_buf = page_aligned_zalloc(length);
+    DDD("cmd_buf: %p, length: %ld", ctx->cmd_buf, length);
     ctx->cmd_mr = ibv_reg_mr(ctx->pd, ctx->cmd_buf, length, access);
     if (!ctx->cmd_mr) {
         serverLog(LL_WARNING, "RDMA: reg mr for CMD failed");
@@ -226,6 +228,7 @@ static int rdmaSetupIoBuf(RdmaContext *ctx, struct rdma_cm_id *cm_id) {
     length = REDIS_RDMA_DEFAULT_RX_LEN;
     ctx->recv_buf = page_aligned_zalloc(length);
     ctx->recv_length = length;
+    DDD("recv_buf: %p, length: %ld", ctx->recv_buf, length);
     ctx->recv_mr = ibv_reg_mr(ctx->pd, ctx->recv_buf, length, access);
     if (!ctx->recv_mr) {
         serverLog(LL_WARNING, "RDMA: reg mr for recv buffer failed");
@@ -325,6 +328,7 @@ static int rdmaAdjustSendbuf(RdmaContext *ctx, unsigned int length) {
     /* create a new buffer & MR */
     ctx->send_buf = page_aligned_zalloc(length);
     ctx->send_length = length;
+    DDD("send_buf: %p, length: %d", ctx->send_buf, length);
     ctx->send_mr = ibv_reg_mr(ctx->pd, ctx->send_buf, length, access);
     if (!ctx->send_mr) {
         serverRdmaError(server.neterr, "RDMA: reg send mr failed");

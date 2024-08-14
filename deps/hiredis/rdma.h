@@ -32,7 +32,10 @@
 #ifndef __RDMA_H
 #define __RDMA_H
 
+#define USE_RDMA
+
 #include "hiredis.h"
+
 
 int redisContextConnectRdma(redisContext *c, const char *addr, int port, const struct timeval *timeout);
 
