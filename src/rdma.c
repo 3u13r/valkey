@@ -14,6 +14,7 @@
 #if defined USE_RDMA && defined __linux__ /* currently RDMA is only supported on Linux */
 #include "connection.h"
 #include "connhelpers.h"
+#include "debugmacro.h"
 
 #include <assert.h>
 #include <arpa/inet.h>
@@ -575,6 +576,8 @@ pollcq:
         break;
 
     case IBV_WC_SEND:
+        // DDD("[VALKEY] IBV_WC_SEND wc %p, wr_id %p, status %d, opcode %d, byte_len %d, imm_data %d, qp_num %d, src_qp %d, wc_flags %d",
+        //     &wc, (void *)wc.wr_id, wc.status, wc.opcode, wc.byte_len, wc.imm_data, wc.qp_num, wc.src_qp, wc.wc_flags);
         cmd = (ValkeyRdmaCmd *)wc.wr_id;
         if (connRdmaHandleSend(cmd) == C_ERR) {
             return C_ERR;
